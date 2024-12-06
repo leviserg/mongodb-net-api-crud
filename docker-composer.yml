@@ -1,0 +1,67 @@
+name: mongo-local
+services:
+    mongodb:
+        image: bitnami/mongodb:8.0.3
+        container_name: mongodb
+        volumes:
+            - mongodbdata:/bitnami/mongodb
+        environment:
+            MONGODB_ROOT_USER: root        
+            MONGODB_ROOT_PASSWORD: ${SERVER_PWD}
+            MONGODB_USERNAME: ${DEVELOPER_LOGIN}
+            MONGODB_PASSWORD: ${DEVELOPER_PWD}
+            MONGODB_DATABASE: ${DEVELOPER_DB}
+            GLIBC_TUNABLES: glibc.pthread.rseq=0
+        ports:
+            - 27017:27017
+        deploy:
+            resources:
+                limits:
+                    cpus: '1'
+                    memory: 2G
+        healthcheck:
+            test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+            retries: 5
+            interval: 5s
+            start_period: 10s
+            timeout: 10s
+    
+    mongo-express:
+        image: mongo-express:1.0.2-20-alpine3.19
+        container_name: mongoexpress
+        restart: always # unless-stopped # fixes MongoNetworkError when mongodb is not ready when mongo-express starts
+        ports:
+            - 8080:8081
+        environment:
+            ME_CONFIG_MONGODB_ADMINUSERNAME: root
+            ME_CONFIG_MONGODB_ADMINPASSWORD: ${SERVER_PWD}
+            ME_CONFIG_BASICAUTH_USERNAME: ${DEVELOPER_LOGIN}
+            ME_CONFIG_BASICAUTH_PASSWORD: ${DEVELOPER_PWD}
+            ME_CONFIG_MONGODB_SERVER: mongodb
+            ME_CONFIG_MONGODB_PORT: 27017
+        depends_on:
+            mongodb:
+                condition: service_healthy # service_started # 
+        deploy:
+            resources:
+                limits:
+                    cpus: '1'
+                    memory: 2G
+volumes:
+    mongodbdata:
+        driver: local
+    
+# > mongosh -u root {+ enter -> password}
+# > use AppDb
+# > show collections
+# > db.createCollection('books');
+# > db.books.insertMany([
+# { _id: 1, name:"The Case Notes of Sherlock Holmes", authors: [{ _id: 1, firstName:"Arthur", lastName:"Doile"}], issued: "1927-06-16" },
+# { _id: 2, name:"No plan B", authors: [{ _id: 2, firstName:"Lee", lastName:"Child"}], issued: "2022-05-12" },
+# { _id: 3, name:"The Adventures of Tom Sawyer", authors: [{ _id: 3, firstName:"Mark", lastName:"Twain"}], issued: "1876-09-10" },
+# { _id: 4, name:"One shot", authors: [{ _id: 2, firstName:"Lee", lastName:"Child"}], issued: "2005-04-05" },
+# { _id: 5, name:"Algorithms", authors: [{ _id: 4, firstName:"Robert", lastName:"Sedgewick"},{ _id: 5, firstName:"Kevin", lastName:"Wayne"}], issued: "2011-03-01" },
+# { _id: 6, name:"Clean Code", authors: [{ _id: 6, firstName:"Robert", lastName:"Martin"}], issued: "2007-01-01" }
+# ])
+# > db.books.find().pretty();
+# > db.getSiblingDB('${DEVELOPER_DB}').createUser({user:'${DEVELOPER_LOGIN}',pwd:'${DEVELOPER_PWD}',roles:[{role:'readWrite',db:'${DEVELOPER_DB}'}]})

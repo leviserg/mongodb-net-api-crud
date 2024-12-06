@@ -1,0 +1,6 @@
+@mongodb_net_api_crud_HostAddress = http://localhost:5250
+
+GET {{mongodb_net_api_crud_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
